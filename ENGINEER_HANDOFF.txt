@@ -1,0 +1,37 @@
+Engineer Handoff (Blind Assist)
+===============================
+
+What to review
+--------------
+- PROJECT_OVERVIEW.txt (architecture + commands + config)
+- PI5_IMPLEMENTATION_PLAN.txt (Pi 5 deployment plan)
+- README.md (setup + commands)
+- blind_assist/ (core implementation)
+
+Important: secrets
+------------------
+- If you include real API keys in `.env`, treat the zip as sensitive.
+- If keys are ever shared beyond the intended reviewer, rotate them immediately.
+- `.env.example` and `.env.raspi` exist as templates if you prefer not to share keys.
+
+Review bundle (Windows)
+-----------------------
+Run this in PowerShell from the project folder:
+
+  powershell -ExecutionPolicy Bypass -File .\PACK_FOR_ENGINEER_REVIEW.ps1
+
+It creates `blind-assist-review.zip` and excludes:
+- vision_ai_env (virtual environment)
+- __pycache__
+- alerts (generated SOS reports)
+- temp.jpg (local test image)
+
+To create a sanitized bundle that excludes `.env`:
+
+  powershell -ExecutionPolicy Bypass -File .\PACK_FOR_ENGINEER_REVIEW.ps1 -ExcludeEnv
+
+Quick smoke checks
+------------------
+- `vision_ai_env\Scripts\python.exe -m compileall blind_assist main.py`
+- Run app: `vision_ai_env\Scripts\python.exe main.py`
+- Commands: `help`, `pi self test`, `describe`, `assist on`, `assist off`, `sos`

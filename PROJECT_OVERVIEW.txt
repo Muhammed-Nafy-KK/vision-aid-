@@ -1,0 +1,203 @@
+Blind Assist (Smart-Cane Prototype) - Engineer Overview
+======================================================
+
+Purpose
+-------
+Blind Assist is a voice-first assistive prototype for blind / low-vision users that combines:
+- camera snapshots (OpenCV)
+- speech-to-text (local, Whisper via SpeechRecognition + faster-whisper)
+- text-to-speech (pyttsx3)
+- cloud multimodal vision models (Gemini, with fallback to OpenAI-compatible vision; optional DeepSeek)
+- optional route guidance using OpenStreetMap (Nominatim + OSRM)
+
+It provides short, spoken-friendly outputs for:
+- scene description
+- safety/hazard checks
+- navigation-style hints
+- OCR-style reading
+- object finding
+- scene Q&A
+- continuous "assist" mode (periodic safety checks)
+- SOS report generation (writes a text report file)
+
+Safety / Product Positioning
+----------------------------
+This is a useful assistive prototype, not a certified mobility device.
+It can hallucinate, miss hazards, and be delayed by network/camera/mic issues.
+Do not rely on it as the only safety tool for street crossing or dangerous environments.
+
+Key Features (Current Build)
+----------------------------
+- Voice session model:
+  - wake word starts a session (default: "hi")
+  - multiple spoken commands during the session
+  - "bye" ends the session
+- Smart-cane style mode:
+  - "assist on" periodically runs a safety scan and speaks changed warnings
+  - local fallback safety hint if cloud vision fails (edge-density heuristic)
+- Multimodal vision requests:
+  - camera frame -> provider -> short response
+  - provider fallback order: Gemini -> OpenAI-compatible -> DeepSeek (if configured)
+- Outdoor route guidance:
+  - no API key needed
+  - uses OpenStreetMap public endpoints (Nominatim search + OSRM walking route)
+  - step-by-step guidance with next/previous/repeat/status
+- SOS:
+  - "sos" saves "alerts/last_sos.txt" (time + saved location + route status + mode status)
+- Pi support:
+  - configurable device profiles (pc/pi3/pi4/pi5)
+
+Commands (Full App)
+-------------------
+Core:
+- help
+- describe
+- navigate
+- safety
+- crossing
+- read
+- label (alias for read)
+- find <item>
+- ask <question>
+
+Modes:
+- assist on
+- assist off
+- live on
+- live off
+- voice on
+- voice off
+
+Outdoor routing:
+- set location <place>
+- route to <place>
+- route from <origin> to <destination>
+- route status
+- next step
+- previous step
+- repeat step
+- restart route
+- destination
+- stop route
+
+Utilities:
+- listen
+- audio test
+- pi self test
+- sos
+- status
+- quit
+
+Repository Layout
+-----------------
+- main.py
+  - entrypoint; calls blind_assist.app:main()
+
+- blind_assist/app.py
+  - command parsing and orchestration
+  - voice session thread
+  - assist thread (periodic safety scan)
+  - live mode start/stop wrapper (Gemini Live)
+  - SOS report creation integration
+
+- blind_assist/config.py
+  - loads .env via python-dotenv
+  - multi-provider config (Gemini/OpenAI/DeepSeek)
+  - device profiles (pc/pi3/pi4/pi5) for lighter defaults
+
+- blind_assist/camera.py
+  - OpenCV capture loop
+  - supports Windows (DirectShow) and Linux (V4L2)
+  - configurable backend + frame size + capture interval
+
+- blind_assist/speech.py
+  - Speaker: pyttsx3 TTS via subprocess for stability
+  - Transcriber: SpeechRecognition microphone capture + faster-whisper transcription (CPU)
+
+- blind_assist/gemini_service.py
+  - Gemini vision analyze_image
+  - OpenAI-compatible vision fallback (chat/completions with image_url)
+  - optional DeepSeek fallback (requires a vision-capable model configured)
+  - Gemini Live streaming (bidi) for optional live mode
+
+- blind_assist/maps_service.py
+  - Nominatim geocoding (no key)
+  - OSRM walking route with steps (no key)
+
+- blind_assist/local_vision.py
+  - local fallback: very simple edge-density heuristic to guess if center path is blocked
+
+- blind_assist/emergency.py
+  - SOS report generator, writes alerts/last_sos.txt
+
+Running On Windows (Developer Machine)
+--------------------------------------
+1) Create/activate venv (example):
+   vision_ai_env\Scripts\python.exe -m pip install -r requirements.txt
+2) Configure .env (keys, camera index, wake word)
+3) Run:
+   vision_ai_env\Scripts\python.exe main.py
+
+Raspberry Pi (Full Build)
+-------------------------
+Use RASPBERRY_PI_SETUP.md and the Pi profile settings in .env.
+Note: on Pi 3B+ performance is limited. Pi 5 (8GB) is the best target.
+
+Configuration / Environment Variables
+-------------------------------------
+Provider keys (never commit real keys):
+- GEMINI_API_KEY or GEMINI_API_KEYS (comma separated)
+- OPENAI_API_KEY or OPENAI_API_KEYS (comma separated)
+- OPENAI_BASE_URL (default https://api.openai.com/v1)
+- OPENAI_VISION_MODEL (default gpt-4o-mini)
+- DEEPSEEK_API_KEY or DEEPSEEK_API_KEYS
+- DEEPSEEK_BASE_URL
+- DEEPSEEK_VISION_MODEL (optional; only if vision endpoint/model supported)
+- PROVIDER_ORDER (gemini,openai,deepseek)
+
+Camera:
+- CAMERA_INDEX
+- CAMERA_BACKEND (auto/dshow/v4l2/any)
+- FRAME_WIDTH / FRAME_HEIGHT
+- CAMERA_READ_INTERVAL_SECONDS
+
+Device profile:
+- DEVICE_PROFILE (pc/pi3/pi4/pi5)
+- PROFILE_OVERRIDE_DEFAULTS (true/false)
+- ENABLE_LIVE_MODE (can be disabled on Pi 3)
+
+Assist/live cadence:
+- ASSIST_INTERVAL_SECONDS
+- LIVE_INTERVAL_SECONDS
+
+Speech:
+- WHISPER_MODEL, WHISPER_BEAM_SIZE
+- SAMPLE_RATE and SpeechRecognition thresholds
+- WAKE_WORD, WAKE_WORD_SIMILARITY, COMMAND_SIMILARITY
+
+Maps:
+- NOMINATIM_BASE_URL, OSRM_BASE_URL, NOMINATIM_COUNTRYCODES, NOMINATIM_USER_AGENT
+
+Emergency:
+- EMERGENCY_CONTACT_NAME, EMERGENCY_CONTACT_PHONE, EMERGENCY_OUTPUT_DIR
+
+Known Limitations / Risks
+-------------------------
+- Cloud availability: Gemini/OpenAI can rate-limit, overload, or return temporary errors.
+- Live mode instability: continuous streaming is the most fragile path; keep it optional.
+- Safety accuracy: vision models can miss hazards; local fallback is only a coarse heuristic.
+- Audio routing: varies by OS/driver; Windows tends to be simplest; Linux needs ALSA/Pulse config.
+- Pi 3B+ performance: local speech recognition and frequent camera frames can be slow.
+
+Engineer Notes / Next High-Value Improvements
+---------------------------------------------
+- Add frame downscaling + JPEG quality controls for bandwidth/latency stability (esp. Pi).
+- Add explicit confidence + "not sure" guardrails in prompts and output policies.
+- Add offline OCR/object detection options (e.g., tesseract + lightweight detectors) for no-network mode.
+- Add GPS integration (phone or USB GPS) for true outdoor navigation progress.
+- Add a proper SOS action path (SMS/call) per platform, rather than only writing a report file.
+
+Security Notes
+--------------
+- API keys must live in .env and never be committed or shared.
+- If a key is ever exposed, rotate it immediately.

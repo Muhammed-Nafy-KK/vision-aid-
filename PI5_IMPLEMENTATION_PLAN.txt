@@ -1,0 +1,134 @@
+Raspberry Pi 5 (8GB) - Implementation Plan (Blind Assist Full Build)
+====================================================================
+
+Goal
+----
+Run the full Blind Assist project on Raspberry Pi 5 (8GB) smoothly:
+- camera capture + continuous assist mode
+- local speech (Whisper) + TTS
+- cloud vision (Gemini with provider fallback)
+- optional live mode (Gemini Live)
+- route guidance (OpenStreetMap Nominatim + OSRM)
+- SOS report generation
+
+Assumptions
+-----------
+- Raspberry Pi 5 (8GB) with a stable power supply
+- Raspberry Pi OS 64-bit
+- USB camera (or Pi camera) + USB microphone + headphones/speaker (optional)
+- Internet connection (required for cloud vision + maps endpoints)
+
+Phase 1 - Hardware + OS Bring-up
+-------------------------------
+1. Flash Raspberry Pi OS (64-bit) to SD card.
+2. First boot:
+   - connect Wi-Fi or Ethernet
+   - update system:
+     sudo apt update && sudo apt upgrade -y
+3. Confirm basics:
+   - camera visible (e.g., /dev/video0 for USB cam)
+   - mic visible (arecord -l)
+   - audio output works (speaker-test)
+
+Phase 2 - Install Project + Dependencies
+----------------------------------------
+1. Copy the project folder onto the Pi (USB drive or scp).
+2. Install system packages using:
+   raspi_system_packages.txt
+3. Create virtualenv:
+   python3 -m venv .venv
+   source .venv/bin/activate
+   python -m pip install --upgrade pip setuptools wheel
+4. Install Python deps:
+   pip install -r requirements.raspi.txt
+
+Phase 3 - Configure .env for Pi 5
+---------------------------------
+1. Start from:
+   .env.raspi
+2. Set these Pi 5 values (recommended starting point):
+   DEVICE_PROFILE=pi5
+   CAMERA_BACKEND=v4l2
+   FRAME_WIDTH=640
+   FRAME_HEIGHT=480
+   CAMERA_READ_INTERVAL_SECONDS=0.04
+   WHISPER_MODEL=base
+   WHISPER_BEAM_SIZE=2
+   ASSIST_INTERVAL_SECONDS=3.0
+   LIVE_INTERVAL_SECONDS=2.5
+   ENABLE_LIVE_MODE=true
+
+3. Provider keys:
+   - Set GEMINI_API_KEY or GEMINI_API_KEYS
+   - Optionally set OPENAI_API_KEYS for fallback
+   - Keep PROVIDER_ORDER=gemini,openai,deepseek (deepseek vision optional)
+
+Phase 4 - First Run + Self Test
+-------------------------------
+1. Run:
+   python main.py
+2. In the CLI:
+   pi self test
+   audio test
+3. Validate camera + cloud path:
+   describe
+   safety
+4. Validate continuous mode:
+   assist on
+   (wait 10-20 seconds)
+   assist off
+
+Phase 5 - Smoothness Tuning (Make It Feel “Instant”)
+-----------------------------------------------------
+If responses feel slow or choppy:
+1. Reduce frame size:
+   FRAME_WIDTH=512
+   FRAME_HEIGHT=384
+2. Increase assist interval:
+   ASSIST_INTERVAL_SECONDS=4.0
+3. Reduce speech cost:
+   WHISPER_BEAM_SIZE=1
+   (or WHISPER_MODEL=tiny if needed)
+4. Avoid live mode unless needed:
+   ENABLE_LIVE_MODE=false
+
+If cloud providers throttle:
+1. Add multiple Gemini keys in GEMINI_API_KEYS.
+2. Keep OpenAI fallback configured.
+3. Prefer one-shot commands + assist mode over live streaming.
+
+Phase 6 - Field Test Checklist (Short + Practical)
+--------------------------------------------------
+Indoor:
+- describe works in different lighting
+- safety gives short warnings
+- assist mode does not spam identical messages
+- read can read simple printed text
+
+Outdoor:
+- set location + route to returns steps
+- next step / route status behave correctly
+- crossing guidance is conservative (does not hallucinate signals)
+
+Emergency:
+- sos creates alerts/last_sos.txt
+
+Phase 7 - Deployment Hardening (Optional)
+-----------------------------------------
+1. Create a systemd service to auto-start the app on boot.
+2. Add log file output (stdout/stderr to file).
+3. Add watchdog restart on crash.
+
+What “Perfect” Means (Engineering Definition)
+----------------------------------------------
+- camera always returns frames without blocking
+- speech recognition works in normal noise
+- assist mode gives short actionable warnings
+- provider fallback prevents long stalls
+- route service works reliably with network
+
+Notes
+-----
+- Pi 5 (8GB) is the recommended target for the full build.
+- Live mode is the most fragile feature on any device; keep it optional.
+

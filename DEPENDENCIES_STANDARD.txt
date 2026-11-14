@@ -1,0 +1,41 @@
+Dependencies (Standard Install)
+===============================
+
+Windows (Developer PC)
+----------------------
+Prereqs:
+- Python 3.10+ recommended
+
+Install (from project folder):
+1) Create/activate a venv (example):
+   python -m venv .venv
+   .\.venv\Scripts\activate
+2) Install deps:
+   pip install -r requirements.txt
+
+Run:
+  python main.py
+
+Raspberry Pi (Linux)
+--------------------
+Prereqs:
+- Raspberry Pi OS 64-bit recommended
+- Python 3.10+ recommended
+
+System packages (Debian/Raspberry Pi OS):
+  sudo apt update
+  sudo xargs apt install -y < raspi_system_packages.txt
+
+Venv + pip deps:
+  python3 -m venv .venv
+  source .venv/bin/activate
+  python -m pip install --upgrade pip setuptools wheel
+  pip install -r requirements.raspi.txt
+
+Run:
+  python main.py
+
+Notes
+-----
+- If OpenCV install is problematic on Pi, using `python3-opencv` from apt often helps.
+- Network access is required for Gemini/OpenAI/OSM routing.

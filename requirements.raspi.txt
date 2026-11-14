@@ -1,0 +1,10 @@
+google-genai
+opencv-python
+pyttsx3
+sounddevice
+SpeechRecognition
+faster-whisper
+python-dotenv
+scipy
+soundfile
+requests
